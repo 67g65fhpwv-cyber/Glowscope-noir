@@ -294,19 +294,6 @@
 </style>
 </head>
 <body>
-<div id="debugErrorBox" style="display:none; position:fixed; top:0; left:0; right:0; z-index:9999; background:#b91c1c; color:#fff; font-family:monospace; font-size:12px; padding:12px; word-break:break-word; max-height:40vh; overflow:auto;"></div>
-<script>
-  window.addEventListener('error', function(e){
-    var box = document.getElementById('debugErrorBox');
-    box.style.display = 'block';
-    box.textContent += 'ERREUR: ' + e.message + ' (ligne ' + e.lineno + ')\n';
-  });
-  window.addEventListener('unhandledrejection', function(e){
-    var box = document.getElementById('debugErrorBox');
-    box.style.display = 'block';
-    box.textContent += 'PROMESSE REJETÉE: ' + (e.reason && e.reason.message ? e.reason.message : e.reason) + '\n';
-  });
-</script>
 <div class="wrap">
 
   <div class="topbar">
@@ -715,7 +702,7 @@ let declaredSkinType = "Mixte";
 function goTo(id){
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  window.scrollTo({top:0, behavior:'smooth'});
+  window.scrollTo(0, 0);
 }
 
 function openModal(id){ document.getElementById(id).classList.add('active'); }
@@ -806,14 +793,10 @@ const scanMessages = [
 ];
 
 async function startAnalysis(){
-  alert('checkpoint 1 : startAnalysis appelée');
-  if(!uploadedImageBase64) { alert('STOP : pas de photo en mémoire'); return; }
-  alert('checkpoint 2 : photo présente');
+  if(!uploadedImageBase64) return;
   const quiz = getQuizAnswers();
-  alert('checkpoint 3 : quiz lu');
   declaredSkinType = quiz.skinType || "Mixte";
   goTo('screen-scan');
-  alert('checkpoint 4 : goTo scan appelé');
   let i = 0;
   const statusEl = document.getElementById('scanStatus');
   statusEl.textContent = scanMessages[0];
