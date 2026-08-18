@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GlowScope — Analyse beauté par IA</title>
+<meta name="description" content="Analyse beauté par IA : peau, yeux, cheveux. Paiement unique de 2€, sans abonnement caché.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#120D0A;
+    --ink:#F3E9D8;
+    --rose:#C9A227;
+    --blush:#E8D5A8;
+    --gold:#8B1E3F;
+    --sage:#B08D57;
+    --line:rgba(243,233,216,0.14);
+    --card:#1F1712;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.01ms !important; transition-duration:0.01ms !important;}
+  }
+  h1,h2,h3{font-family:'Fraunces',serif; font-weight:500; letter-spacing:-0.01em;}
+  .wrap{max-width:480px; margin:0 auto; min-height:100vh; background:var(--bg); position:relative;}
+  .screen{display:none; padding:28px 22px 48px;}
+  .screen.active{display:block;}
+
+  /* ---- Facet motif (signature element) ---- */
+  .facet-divider{
+    display:flex; align-items:center; gap:8px; margin:28px 0; opacity:0.7;
+  }
+  .facet-divider svg{flex-shrink:0;}
+  .facet-divider .rule{flex:1; height:1px; background:var(--line);}
+
+  /* ---- Top bar ---- */
+  .topbar{display:flex; align-items:center; justify-content:space-between; padding:18px 22px;}
+  .brand{display:flex; align-items:center; gap:8px; font-family:'Fraunces',serif; font-size:20px; font-weight:600;}
+  .brand svg{width:22px; height:22px;}
+  .price-chip{
+    font-family:'Space Mono',monospace; font-size:12px; background:var(--card);
+    border:1px solid var(--line); padding:6px 10px; border-radius:20px; color:var(--ink);
+  }
+
+  /* ---- Chat assistant ---- */
+  .chat-fab{
+    position:fixed; right:18px; bottom:18px; width:52px; height:52px; border-radius:50%;
+    background:var(--rose); color:#1F1712; border:none; font-size:22px; cursor:pointer;
+    box-shadow:0 8px 20px rgba(0,0,0,0.4); z-index:150; display:flex; align-items:center; justify-content:center;
+  }
+  .chat-panel{
+    display:none; position:fixed; right:16px; bottom:80px; width:min(340px, calc(100vw - 32px));
+    max-height:70vh; background:#1F1712; border:1px solid rgba(201,162,39,0.3); border-radius:18px;
+    z-index:150; flex-direction:column; box-shadow:0 12px 32px rgba(0,0,0,0.5); overflow:hidden;
+  }
+  .chat-panel.active{display:flex;}
+  .chat-header{
+    display:flex; justify-content:space-between; align-items:center; padding:14px 16px;
+    border-bottom:1px solid var(--line); font-weight:700; font-size:14px;
+  }
+  .chat-header button{background:none; border:none; color:var(--ink); font-size:18px; cursor:pointer;}
+  .chat-messages{flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:10px; max-height:320px;}
+  .chat-msg{font-size:13px; line-height:1.5; padding:9px 12px; border-radius:14px; max-width:85%;}
+  .chat-msg.bot{background:rgba(255,255,255,0.07); align-self:flex-start; border-bottom-left-radius:4px;}
+  .chat-msg.user{background:var(--rose); color:#1F1712; align-self:flex-end; border-bottom-right-radius:4px;}
+  .chat-suggestions{display:flex; flex-wrap:wrap; gap:6px; padding:0 16px 12px;}
+  .chat-suggestions button{
+    font-size:11px; background:rgba(255,255,255,0.06); border:1px solid var(--line); color:var(--ink);
+    padding:6px 10px; border-radius:14px; cursor:pointer;
+  }
+  .chat-input-row{display:flex; gap:8px; padding:12px 14px; border-top:1px solid var(--line);}
+  .chat-input-row input{
+    flex:1; background:rgba(255,255,255,0.06); border:1px solid var(--line); border-radius:20px;
+    padding:9px 14px; color:var(--ink); font-size:13px; font-family:inherit;
+  }
+  .chat-input-row input::placeholder{color:rgba(243,233,216,0.4);}
+  .chat-input-row button{
+    background:var(--rose); color:#1F1712; border:none; border-radius:20px; padding:0 16px;
+    font-weight:700; font-size:13px; cursor:pointer;
+  }
+
+  /* ---- Hero ---- */
+  .hero-visual{
+    width:100%; aspect-ratio:1/1; max-height:280px; display:flex; align-items:center; justify-content:center;
+    margin:8px 0 20px;
+  }
+  .hero-gem{overflow:visible;}
+  .aura-pulse{transform-origin:130px 130px; animation:auraPulse 3.4s ease-in-out infinite;}
+  @keyframes auraPulse{
+    0%,100%{transform:scale(0.94); opacity:0.75;}
+    50%{transform:scale(1.08); opacity:1;}
+  }
+  .aura-ring{transform-origin:130px 130px; animation:ringSpin 24s linear infinite;}
+  @keyframes ringSpin{to{transform:rotate(360deg);}}
+  .gem-spin{transform-origin:130px 130px; animation:gemFloat 5s ease-in-out infinite;}
+  @keyframes gemFloat{
+    0%,100%{transform:translateY(0) rotate(0deg);}
+    50%{transform:translateY(-6px) rotate(2deg);}
+  }
+  .sparkle{transform-box:fill-box; transform-origin:center; animation:sparkleTwinkle 2.2s ease-in-out infinite;}
+  .sparkle.s2{animation-delay:.5s;}
+  .sparkle.s3{animation-delay:1s;}
+  @keyframes sparkleTwinkle{
+    0%,100%{opacity:0.25; transform:scale(0.7);}
+    50%{opacity:1; transform:scale(1.15);}
+  }
+  .eyebrow{
+    font-family:'Space Mono',monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--rose); margin-bottom:10px; display:block;
+  }
+  h1.headline{font-size:32px; line-height:1.15; margin-bottom:14px;}
+  .sub{font-size:15px; color:rgba(243,233,216,0.72); margin-bottom:26px;}
+  .chips{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:28px;}
+  .chip{
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px 14px;
+    font-size:13px; display:flex; align-items:center; gap:6px;
+  }
+  .btn{
+    display:block; width:100%; text-align:center; padding:16px 20px; border-radius:14px;
+    font-family:'Inter',sans-serif; font-weight:600; font-size:15px; border:none; cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:active{transform:scale(0.98);}
+  .btn:focus-visible{outline:2px solid var(--rose); outline-offset:2px;}
+  .btn-primary{background:var(--rose); color:#fff; box-shadow:0 8px 20px rgba(214,51,108,0.28);}
+  .btn-ghost{background:transparent; color:var(--ink); border:1px solid var(--line);}
+  .btn-dark{background:#F3E9D8; color:#1F1712;}
+  .price-note{
+    font-size:12.5px; color:rgba(243,233,216,0.6); text-align:center; margin-top:10px;
+  }
+
+  /* ---- Upload screen ---- */
+  .back-row{display:flex; align-items:center; gap:10px; margin-bottom:18px;}
+  .back-btn{background:none; border:none; font-size:20px; cursor:pointer; color:var(--ink); padding:4px;}
+  .upload-zone{
+    display:block; border:1.5px dashed var(--line); border-radius:20px; padding:36px 20px; text-align:center;
+    background:var(--card); cursor:pointer; transition:border-color .2s ease;
+  }
+  .upload-zone:hover{border-color:var(--rose);}
+  .upload-zone.has-image{padding:0; overflow:hidden; border-style:solid;}
+  .upload-zone img{width:100%; display:block; max-height:360px; object-fit:cover;}
+  .upload-icon{font-size:32px; margin-bottom:10px; display:block;}
+  .upload-hint{font-size:13px; color:rgba(243,233,216,0.6); margin-top:6px;}
+  input[type=file]{display:none;}
+  .consent{
+    font-size:12.5px; color:rgba(243,233,216,0.65); margin:16px 0 22px; padding:14px;
+    background:rgba(107,143,113,0.08); border-radius:12px; border-left:3px solid var(--sage);
+  }
+
+  /* ---- Quiz screen ---- */
+  .quiz-group{margin-bottom:20px;}
+  .quiz-label{display:block; font-size:14px; font-weight:600; margin-bottom:10px;}
+  .quiz-options{display:flex; gap:8px; flex-wrap:wrap;}
+  .quiz-pill{
+    position:relative; background:var(--card); border:1.5px solid var(--line); border-radius:20px;
+    padding:9px 14px; font-size:13px; cursor:pointer; transition:all .15s ease;
+  }
+  .quiz-pill input{position:absolute; opacity:0; pointer-events:none;}
+  .quiz-pill:has(input:checked){
+    background:var(--rose); border-color:var(--rose); color:#fff; font-weight:600;
+  }
+
+  /* ---- Scan screen ---- */
+  .scan-stage{display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:70vh; text-align:center;}
+  .facet-ring{width:150px; height:150px; margin-bottom:28px; position:relative;}
+  .facet-ring svg{animation:spin 3.2s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .scan-status{font-family:'Space Mono',monospace; font-size:13px; color:var(--rose); min-height:20px;}
+  .scan-title{font-size:20px; margin-top:14px;}
+
+  /* ---- Results ---- */
+  .result-card{
+    background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px; margin-bottom:14px;
+  }
+  .result-card h3{font-size:16px; margin-bottom:8px; display:flex; align-items:center; gap:8px;}
+  .result-card p{font-size:14px; color:rgba(243,233,216,0.75);}
+  .score-chip{display:inline-block; margin-top:10px; padding:4px 12px; border-radius:20px; background:rgba(198,161,91,0.15); border:1px solid rgba(198,161,91,0.4); color:#c6a15b; font-size:13px; font-weight:600; letter-spacing:0.3px;}
+  .score-arrow{animation:bounceArrow 1.4s ease-in-out infinite;}
+  @keyframes bounceArrow{0%,100%{transform:translateY(0);opacity:0.6;}50%{transform:translateY(6px);opacity:1;}}
+  .locked{position:relative; overflow:hidden;}
+  .locked .lock-body{filter:blur(5px); user-select:none; pointer-events:none;}
+  .lock-overlay{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(31,23,18,0.92); gap:8px; text-align:center; padding:16px;
+  }
+  .lock-overlay .lock-emoji{font-size:20px;}
+  .lock-cta{
+    font-size:12.5px; font-weight:600; color:var(--rose); background:#fff; border:1px solid var(--line);
+    padding:7px 14px; border-radius:20px; cursor:pointer; width:100%; max-width:240px;
+  }
+
+  /* ---- Paywall banner (always visible, honest) ---- */
+  .unlock-panel{
+    background:linear-gradient(160deg, #2A1A20, #1A1108); border:1px solid rgba(201,162,39,0.3); color:#F3E9D8; border-radius:20px; padding:24px 20px; margin:24px 0; text-align:center;
+  }
+  .unlock-panel .price-big{font-family:'Fraunces',serif; font-size:34px; margin:6px 0;}
+  .unlock-panel .price-big small{font-size:15px; font-weight:400; opacity:0.7;}
+  .unlock-panel ul{list-style:none; text-align:left; margin:16px 0; font-size:13.5px; opacity:0.85;}
+  .unlock-panel li{padding:5px 0; display:flex; gap:8px;}
+  .unlock-panel .btn-primary{background:var(--rose); color:#1F1712; box-shadow:none; margin-top:6px;}
+  .unlock-panel .fineprint{font-size:11.5px; opacity:0.65; margin-top:10px; line-height:1.5;}
+  .plan-options{display:flex; flex-direction:column; gap:10px; margin-bottom:16px;}
+  .plan-card{
+    display:block; text-align:left; background:rgba(255,255,255,0.06); border:1.5px solid rgba(255,255,255,0.15);
+    border-radius:14px; padding:14px; cursor:pointer; transition:all .15s ease; position:relative;
+  }
+  .plan-card input{position:absolute; opacity:0;}
+  .plan-card:has(input:checked){border-color:var(--gold); background:rgba(255,255,255,0.12);}
+  .plan-card-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;}
+  .plan-name{font-weight:600; font-size:14.5px;}
+  .plan-price{font-family:'Fraunces',serif; font-size:18px;}
+  .plan-price small{font-size:11px; font-weight:400; opacity:0.7;}
+  .plan-desc{font-size:12px; opacity:0.75; display:block; line-height:1.4;}
+  .plan-badge{display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; background:var(--gold); color:#1F1712; padding:2px 7px; border-radius:8px; margin-left:6px; vertical-align:middle;}
+
+  /* ---- Produits recommandés ---- */
+  .product-group{margin-bottom:16px;}
+  .product-group h4{font-size:13.5px; color:#E8D5A8; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.03em;}
+  .product-item{background:rgba(255,255,255,0.05); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:8px;}
+  .product-item .p-name{font-weight:600; font-size:14px; margin-bottom:3px;}
+  .product-item .p-desc{font-size:12.5px; opacity:0.8; line-height:1.4; margin-bottom:8px;}
+  .product-item .p-links{display:flex; gap:8px; flex-wrap:wrap;}
+  .product-item .p-links a{font-size:11.5px; padding:6px 10px; border-radius:8px; background:rgba(255,255,255,0.08); border:1px solid var(--line); color:var(--ink); text-decoration:none;}
+  .product-item .p-links a:active{background:rgba(255,255,255,0.16);}
+  .products-note{font-size:11px; opacity:0.6; line-height:1.5; margin-top:4px;}
+
+  /* ---- Routine steps ---- */
+  .routine-step{display:flex; align-items:flex-start; gap:10px; margin-bottom:12px;}
+  .routine-step .step-num{
+    flex-shrink:0; width:24px; height:24px; border-radius:50%; background:var(--rose); color:#1F1712;
+    font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; margin-top:1px;
+  }
+  .routine-step .step-text{font-size:14px; color:rgba(243,233,216,0.85); line-height:1.5; padding-top:2px;}
+
+  /* ---- Toast ---- */
+  .toast{
+    position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px);
+    background:#F3E9D8; color:#1F1712; font-size:13.5px; font-weight:600; padding:12px 20px;
+    border-radius:24px; box-shadow:0 8px 24px rgba(0,0,0,0.35); z-index:200; opacity:0;
+    pointer-events:none; transition:opacity .25s ease, transform .25s ease; display:flex; align-items:center; gap:8px;
+    max-width:85%; text-align:center;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  /* ---- FAQ de confiance ---- */
+  .faq-box{margin:20px 0; border:1px solid var(--line); border-radius:16px; overflow:hidden;}
+  .faq-box details{border-bottom:1px solid var(--line);}
+  .faq-box details:last-child{border-bottom:none;}
+  .faq-box summary{padding:13px 16px; font-size:13.5px; font-weight:600; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center;}
+  .faq-box summary::-webkit-details-marker{display:none;}
+  .faq-box summary::after{content:'+'; font-size:16px; opacity:0.6;}
+  .faq-box details[open] summary::after{content:'–';}
+  .faq-box p{padding:0 16px 14px; font-size:12.5px; opacity:0.8; line-height:1.5;}
+  .faq-box a{color:var(--ink); text-decoration:underline;}
+
+  /* ---- Modal ---- */
+  .modal-backdrop{
+    display:none; position:fixed; inset:0; background:rgba(243,233,216,0.5); z-index:50;
+    align-items:flex-end; justify-content:center;
+  }
+  .modal-backdrop.active{display:flex;}
+  .modal{
+    background:#1F1712; width:100%; max-width:480px; border-radius:24px 24px 0 0; padding:26px 22px 32px;
+    animation:slideUp .3s ease; border-top:1px solid rgba(201,162,39,0.25);
+  }
+  @keyframes slideUp{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .modal-close{float:right; background:none; border:none; font-size:20px; cursor:pointer; color:var(--ink);}
+  .modal h2{font-size:22px; margin-bottom:4px;}
+  .modal .price-row{display:flex; align-items:baseline; gap:6px; margin:14px 0;}
+  .modal .price-row .amount{font-family:'Fraunces',serif; font-size:36px;}
+  .modal .price-row .desc{font-size:13px; color:rgba(243,233,216,0.6);}
+  .terms-box{
+    font-size:12px; color:rgba(243,233,216,0.65); background:var(--bg); border-radius:10px; padding:12px; margin:14px 0;
+  }
+  .terms-box a{color:var(--rose);}
+  .checkbox-row{display:flex; align-items:flex-start; gap:8px; font-size:12.5px; margin:14px 0 18px; color:rgba(243,233,216,0.75);}
+  .checkbox-row input{margin-top:3px;}
+
+  footer{padding:24px 22px 40px; text-align:center;}
+  footer p{font-size:11.5px; color:rgba(243,233,216,0.5); line-height:1.6;}
+  footer a{color:var(--ink);}
+
+  .error-box{background:#FEE2E2; border:1px solid #FCA5A5; color:#7F1D1D; font-size:13px; padding:12px 14px; border-radius:10px; margin-bottom:16px; display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2 L15 9 L22 12 L15 15 L12 22 L9 15 L2 12 L9 9 Z" fill="#C9A227"/></svg>
+      GlowScope
+    </div>
+    <div class="price-chip">2,40 € · sans abonnement</div>
+  </div>
+
+  <!-- SCREEN 1 : HERO -->
+  <section class="screen active" id="screen-hero">
+    <span class="eyebrow">Analyse IA</span>
+    <h1 class="headline">Votre éclat, révélé dans l'ombre.</h1>
+    <p class="sub">Une photo, une analyse honnête de votre peau, vos yeux et vos cheveux — et une routine pensée pour vous.</p>
+
+    <div class="hero-visual">
+      <svg width="260" height="260" viewBox="0 0 260 260" fill="none" class="hero-gem">
+        <defs>
+          <radialGradient id="auraGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#C9A227" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#C9A227" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="gemTop" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#E8C767"/>
+            <stop offset="100%" stop-color="#C9A227"/>
+          </linearGradient>
+          <linearGradient id="gemRight" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#B24868"/>
+            <stop offset="100%" stop-color="#8B1E3F"/>
+          </linearGradient>
+          <linearGradient id="gemBottom" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#C9A876"/>
+            <stop offset="100%" stop-color="#B08D57"/>
+          </linearGradient>
+          <linearGradient id="gemLeft" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#F0DFC0"/>
+            <stop offset="100%" stop-color="#E8D5A8"/>
+          </linearGradient>
+        </defs>
+
+        <circle cx="130" cy="130" r="120" fill="url(#auraGlow)" class="aura-pulse"/>
+        <circle cx="130" cy="130" r="112" stroke="#E8D5A8" stroke-width="1" opacity="0.4" stroke-dasharray="2 6" class="aura-ring"/>
+        <circle cx="130" cy="130" r="95" stroke="#C9A227" stroke-width="1.2" opacity="0.35"/>
+
+        <g class="gem-spin">
+          <path d="M130 40 L172 108 L130 130 L88 108 Z" fill="url(#gemTop)"/>
+          <path d="M130 130 L172 108 L214 130 L172 152 Z" fill="url(#gemRight)"/>
+          <path d="M130 130 L172 152 L130 220 L88 152 Z" fill="url(#gemBottom)"/>
+          <path d="M130 130 L88 152 L46 130 L88 108 Z" fill="url(#gemLeft)"/>
+          <path d="M130 40 L88 108 L46 130 L88 60 Z" fill="#fff" opacity="0.18"/>
+        </g>
+
+        <g transform="translate(196,68)"><path class="sparkle s1" d="M0 -7 L2 -2 L7 0 L2 2 L0 7 L-2 2 L-7 0 L-2 -2 Z" fill="#8B1E3F"/></g>
+        <g transform="translate(56,180)"><path class="sparkle s2" d="M0 -5 L1.5 -1.5 L5 0 L1.5 1.5 L0 5 L-1.5 1.5 L-5 0 L-1.5 -1.5 Z" fill="#C9A227"/></g>
+        <g transform="translate(206,190)"><path class="sparkle s3" d="M0 -6 L1.8 -1.8 L6 0 L1.8 1.8 L0 6 L-1.8 1.8 L-6 0 L-1.8 -1.8 Z" fill="#B08D57"/></g>
+      </svg>
+    </div>
+
+    <div class="chips">
+      <div class="chip">🔬 Peau</div>
+      <div class="chip">👁 Yeux</div>
+      <div class="chip">💇 Cheveux</div>
+    </div>
+
+    <button class="btn btn-primary" onclick="goTo('screen-upload')">Commencer l'analyse</button>
+    <p class="price-note">Analyse complète : 2,40 € en paiement unique. Aucun renouvellement, aucun abonnement.</p>
+
+    <div class="facet-divider">
+      <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 0 L9 5 L14 7 L9 9 L7 14 L5 9 L0 7 L5 5 Z" fill="#8B1E3F"/></svg>
+      <div class="rule"></div>
+    </div>
+  </section>
+
+  <!-- SCREEN 2 : UPLOAD -->
+  <section class="screen" id="screen-upload">
+    <div class="back-row">
+      <button class="back-btn" onclick="goTo('screen-hero')" aria-label="Retour">←</button>
+      <h2 style="font-size:18px;">Importez votre photo</h2>
+    </div>
+
+    <label class="upload-zone" id="uploadZone">
+      <span id="uploadPlaceholder">
+        <span class="upload-icon">📸</span>
+        <div style="font-weight:600; font-size:15px;">Choisir une photo</div>
+        <div class="upload-hint">JPG ou PNG, traitée uniquement sur cet appareil et par l'analyse — jamais revendue</div>
+      </span>
+      <img id="previewImg" style="display:none;">
+      <input type="file" id="fileInput" accept="image/*" onchange="handleFile(event)">
+    </label>
+
+    <div class="error-box" id="uploadError"></div>
+
+    <button class="btn btn-primary" id="startAnalysisBtn" onclick="goToQuiz()" disabled>Continuer</button>
+  </section>
+
+  <!-- SCREEN 2.5 : QUESTIONNAIRE -->
+  <section class="screen" id="screen-quiz">
+    <div class="back-row">
+      <button class="back-btn" onclick="goTo('screen-upload')" aria-label="Retour">←</button>
+      <h2 style="font-size:18px;">Quelques questions</h2>
+    </div>
+    <p class="sub" style="margin-bottom:18px;">Vos habitudes du quotidien nous aident à affiner votre routine. Tout est facultatif.</p>
+
+    <form id="quizForm">
+      <div class="quiz-group">
+        <label class="quiz-label">🧴 Comment décririez-vous votre peau ?</label>
+        <div class="quiz-options">
+          <label class="quiz-pill"><input type="radio" name="skinType" value="Sèche"> Sèche</label>
+          <label class="quiz-pill"><input type="radio" name="skinType" value="Mixte" checked> Mixte</label>
+          <label class="quiz-pill"><input type="radio" name="skinType" value="Grasse"> Grasse</label>
+          <label class="quiz-pill"><input type="radio" name="skinType" value="Sensible"> Sensible</label>
+        </div>
+      </div>
+      <div class="quiz-group">
+        <label class="quiz-label">💧 Combien d'eau buvez-vous par jour ?</label>
+        <div class="quiz-options">
+          <label class="quiz-pill"><input type="radio" name="water" value="Moins d'1 litre"> Moins d'1L</label>
+          <label class="quiz-pill"><input type="radio" name="water" value="1 à 1,5 litre" checked> 1 à 1,5L</label>
+          <label class="quiz-pill"><input type="radio" name="water" value="Plus de 1,5 litre"> Plus de 1,5L</label>
+        </div>
+      </div>
+
+      <div class="quiz-group">
+        <label class="quiz-label">🥗 Votre alimentation au quotidien</label>
+        <div class="quiz-options">
+          <label class="quiz-pill"><input type="radio" name="diet" value="Beaucoup de fruits et légumes"> Riche en fruits/légumes</label>
+          <label class="quiz-pill"><input type="radio" name="diet" value="Équilibrée" checked> Plutôt équilibrée</label>
+          <label class="quiz-pill"><input type="radio" name="diet" value="Beaucoup de sucre ou plats transformés"> Sucré / transformé</label>
+        </div>
+      </div>
+
+      <div class="quiz-group">
+        <label class="quiz-label">😴 Votre sommeil en moyenne</label>
+        <div class="quiz-options">
+          <label class="quiz-pill"><input type="radio" name="sleep" value="Moins de 6h"> Moins de 6h</label>
+          <label class="quiz-pill"><input type="radio" name="sleep" value="6 à 8h" checked> 6 à 8h</label>
+          <label class="quiz-pill"><input type="radio" name="sleep" value="Plus de 8h"> Plus de 8h</label>
+        </div>
+      </div>
+
+      <div class="quiz-group">
+        <label class="quiz-label">🧴 Routine de nettoyage du visage</label>
+        <div class="quiz-options">
+          <label class="quiz-pill"><input type="radio" name="cleansing" value="Jamais ou rarement"> Rarement</label>
+          <label class="quiz-pill"><input type="radio" name="cleansing" value="Une fois par jour" checked> 1x / jour</label>
+          <label class="quiz-pill"><input type="radio" name="cleansing" value="Deux fois par jour"> 2x / jour</label>
+        </div>
+      </div>
+
+      <div class="quiz-group">
+        <label class="quiz-label">☀️ Exposition au soleil / protection SPF</label>
+        <div class="quiz-options">
+          <label class="quiz-pill"><input type="radio" name="sun" value="Jamais de protection"> Jamais de SPF</label>
+          <label class="quiz-pill"><input type="radio" name="sun" value="Parfois" checked> Parfois</label>
+          <label class="quiz-pill"><input type="radio" name="sun" value="Tous les jours"> Tous les jours</label>
+        </div>
+      </div>
+
+      <div class="quiz-group">
+        <label class="quiz-label">🚬 Tabac / alcool</label>
+        <div class="quiz-options">
+          <label class="quiz-pill"><input type="radio" name="habits" value="Aucun des deux" checked> Aucun des deux</label>
+          <label class="quiz-pill"><input type="radio" name="habits" value="Occasionnellement"> Occasionnellement</label>
+          <label class="quiz-pill"><input type="radio" name="habits" value="Régulièrement"> Régulièrement</label>
+        </div>
+      </div>
+    </form>
+
+    <p style="font-size:12px; color:rgba(243,233,216,0.55); margin:6px 0 18px;">
+      🔒 Ces réponses ne servent qu'à personnaliser vos conseils. Elles ne sont ni stockées, ni transmises à des tiers.
+    </p>
+
+    <button class="btn btn-primary" onclick="startAnalysis()">Lancer l'analyse</button>
+  </section>
+
+  <!-- SCREEN 3 : SCANNING -->
+  <section class="screen" id="screen-scan">
+    <div class="scan-stage">
+      <div class="facet-ring">
+        <svg width="150" height="150" viewBox="0 0 150 150">
+          <path d="M75 15 L105 60 L75 75 L45 60 Z" fill="#C9A227" opacity="0.9"/>
+          <path d="M75 75 L105 60 L135 75 L105 90 Z" fill="#8B1E3F" opacity="0.85"/>
+          <path d="M75 75 L105 90 L75 135 L45 90 Z" fill="#B08D57" opacity="0.8"/>
+          <path d="M75 75 L45 90 L15 75 L45 60 Z" fill="#E8D5A8" opacity="0.9"/>
+        </svg>
+      </div>
+      <h2 class="scan-title">Analyse en cours</h2>
+      <p class="scan-status" id="scanStatus">Lecture de la photo…</p>
+    </div>
+  </section>
+
+  <!-- SCREEN 4 : RESULTS -->
+  <section class="screen" id="screen-results">
+    <div class="back-row">
+      <button class="back-btn" onclick="goTo('screen-hero')" aria-label="Retour à l'accueil">←</button>
+      <h2 style="font-size:18px;">Vos résultats</h2>
+    </div>
+
+    <div class="result-card">
+      <h3>🌿 Analyse peau</h3>
+      <p id="res-skin">—</p>
+    </div>
+    <div class="result-card">
+      <h3>👁 Analyse yeux</h3>
+      <p id="res-eyes">—</p>
+    </div>
+    <div class="result-card">
+      <h3>💇 Analyse cheveux</h3>
+      <p id="res-hair">—</p>
+    </div>
+
+    <div class="result-card" id="card-globalscore" style="text-align:center;">
+      <h3 style="justify-content:center;">✨ Note globale</h3>
+      <div id="globalscore-reveal">
+        <button class="lock-cta" style="width:auto; margin-top:8px;" onclick="revealGlobalScore()">Découvrir ma note</button>
+      </div>
+      <div id="globalscore-number" style="display:none; font-size:48px; font-weight:700; color:#c6a15b; margin-top:6px;">–</div>
+      <div id="globalscore-cta" style="display:none; margin-top:14px;">
+        <p style="font-size:14px; color:rgba(243,233,216,0.85); line-height:1.5;">Pour passer de <strong id="globalscore-ctaval" style="color:#c6a15b;">–</strong> à <strong style="color:#c6a15b;">10/10</strong>, débloque ta routine personnalisée ⤵</p>
+        <div class="score-arrow" style="font-size:26px; margin-top:6px; color:#c6a15b;">↓</div>
+      </div>
+    </div>
+
+    <div class="result-card locked" id="card-routine">
+      <div class="lock-body">
+        <h3>📅 Routine matin + soir</h3>
+        <p id="res-routine">Chargement de votre routine personnalisée en cinq étapes, adaptée à votre profil…</p>
+        <div id="res-avoid" style="margin-top:14px;"></div>
+        <button class="lock-cta" style="margin-top:12px; width:auto;" onclick="copyRoutine()">📋 Copier ma routine</button>
+      </div>
+      <div class="lock-overlay">
+        <span class="lock-emoji">🔒</span>
+        <button class="lock-cta" onclick="openPaywall('once')">Débloquer — 2,40 €</button>
+        <button class="lock-cta" onclick="openPaywall('weekly')">Débloquer — 4,80 €/sem.</button>
+        <button class="lock-cta" onclick="openPaywall('premium')">Débloquer — 9,60 €/sem.</button>
+      </div>
+    </div>
+
+    <div class="result-card locked" id="card-suivi">
+      <div class="lock-body">
+        <h3>📈 Suivi de votre évolution</h3>
+        <p id="res-suivi">Chargement de vos conseils de suivi personnalisés…</p>
+      </div>
+      <div class="lock-overlay">
+        <span class="lock-emoji">🔒</span>
+        <button class="lock-cta" onclick="openPaywall('once')">Débloquer — 2,40 €</button>
+        <button class="lock-cta" onclick="openPaywall('weekly')">Débloquer — 4,80 €/sem.</button>
+        <button class="lock-cta" onclick="openPaywall('premium')">Débloquer — 9,60 €/sem.</button>
+      </div>
+    </div>
+
+    <div class="result-card locked" id="card-history">
+      <div class="lock-body">
+        <h3>🗓️ Historique de vos analyses</h3>
+        <div id="res-history"></div>
+      </div>
+      <div class="lock-overlay">
+        <span class="lock-emoji">🔒</span>
+        <button class="lock-cta" onclick="openPaywall('once')">Débloquer — 2,40 €</button>
+        <button class="lock-cta" onclick="openPaywall('weekly')">Débloquer — 4,80 €/sem.</button>
+        <button class="lock-cta" onclick="openPaywall('premium')">Débloquer — 9,60 €/sem.</button>
+      </div>
+    </div>
+
+    <div class="result-card locked" id="card-products">
+      <div class="lock-body">
+        <h3>🛍️ Produits recommandés</h3>
+        <div id="res-products"></div>
+      </div>
+      <div class="lock-overlay">
+        <span class="lock-emoji">🔒</span>
+        <button class="lock-cta" onclick="openPaywall('premium')">Réservé à l'offre Premium — 9,60 €/semaine</button>
+      </div>
+    </div>
+
+    <div class="faq-box">
+      <details>
+        <summary>Mes données et ma photo sont-elles conservées ?</summary>
+        <p>Votre photo est envoyée uniquement pour générer votre analyse et n'est pas stockée sur nos serveurs. Voir la <a href="#" onclick="closeModal('paymentModal'); openTerms(); return false;">politique de confidentialité</a> pour le détail.</p>
+      </details>
+      <details>
+        <summary>Puis-je annuler mon abonnement à tout moment ?</summary>
+        <p>Oui. Les abonnements hebdomadaire et Premium sont résiliables en un clic à tout moment depuis votre espace de paiement, sans frais ni préavis.</p>
+      </details>
+    </div>
+
+    <div class="unlock-panel">
+      <div class="eyebrow" style="color:#E8D5A8;">GlowScope Complet</div>
+      <p style="font-size:13px; opacity:0.8; margin:6px 0 14px;">Choisissez la formule qui vous convient — annulable à tout moment pour l'abonnement.</p>
+
+      <div class="plan-options">
+        <label class="plan-card">
+          <input type="radio" name="plan" value="once" checked>
+          <div class="plan-card-head">
+            <span class="plan-name">Analyse unique</span>
+            <span class="plan-price">2,40 €</span>
+          </div>
+          <span class="plan-desc">Paiement unique, accès permanent à cette analyse</span>
+        </label>
+        <label class="plan-card">
+          <input type="radio" name="plan" value="weekly">
+          <div class="plan-card-head">
+            <span class="plan-name">Abonnement hebdomadaire</span>
+            <span class="plan-price">4,80 €<small>/semaine</small></span>
+          </div>
+          <span class="plan-desc">Analyses illimitées + suivi de votre évolution. Soit environ 250 €/an. Résiliable en un clic à tout moment.</span>
+        </label>
+        <label class="plan-card">
+          <input type="radio" name="plan" value="premium">
+          <div class="plan-card-head">
+            <span class="plan-name">Premium<span class="plan-badge">+ produits</span></span>
+            <span class="plan-price">9,60 €<small>/semaine</small></span>
+          </div>
+          <span class="plan-desc">Tout l'abonnement hebdomadaire, plus une sélection de produits conseillés pour votre peau et vos cheveux. Soit environ 500 €/an. Résiliable en un clic à tout moment.</span>
+        </label>
+      </div>
+
+      <ul>
+        <li>✓ Routine beauté matin et soir détaillée</li>
+        <li>✓ Suivi personnalisé de votre évolution</li>
+        <li>✓ Sélection de produits adaptés à votre profil (offre Premium)</li>
+      </ul>
+      <button class="btn btn-primary" onclick="openPaywall()">Débloquer mes résultats</button>
+      <p class="fineprint">Analyse unique : paiement unique de 2,40 €, aucun renouvellement. Abonnement hebdomadaire : 4,80 €/semaine (≈250 €/an). Premium : 9,60 €/semaine (≈500 €/an), inclut les recommandations produits. Les deux abonnements sont résiliables à tout moment depuis votre espace de paiement, sans engagement de durée.</p>
+    </div>
+
+    <button class="btn btn-ghost" onclick="resetApp()">Recommencer une analyse</button>
+  </section>
+
+  <footer>
+    <p>
+      GlowScope propose une analyse générée par IA à titre indicatif, sans valeur médicale.<br>
+      <a href="#" onclick="openTerms(); return false;">Conditions générales de vente</a> · <a href="#" onclick="openTerms(); return false;">Confidentialité</a>
+    </p>
+  </footer>
+</div>
+
+<!-- PAYMENT MODAL -->
+<button class="chat-fab" onclick="toggleChat()" aria-label="Assistant">💬</button>
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-header">
+    <span>Assistant GlowScope</span>
+    <button onclick="toggleChat()" aria-label="Fermer">✕</button>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="chat-msg bot">Bonjour 👋 Posez-moi une question sur les prix, l'annulation, vos données ou le fonctionnement de GlowScope.</div>
+  </div>
+  <div class="chat-suggestions">
+    <button onclick="askChat('Combien ça coûte ?')">Prix</button>
+    <button onclick="askChat('Comment annuler ?')">Annulation</button>
+    <button onclick="askChat('Mes données sont-elles conservées ?')">Données</button>
+  </div>
+  <div class="chat-input-row">
+    <input type="text" id="chatInput" placeholder="Votre question…" onkeydown="if(event.key==='Enter') sendChat();">
+    <button onclick="sendChat()">Envoyer</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="paymentModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('paymentModal')" aria-label="Fermer">×</button>
+    <h2>Débloquer GlowScope Complet</h2>
+    <p style="font-size:13px; color:rgba(243,233,216,0.6);" id="modalPlanSubtitle">Accès immédiat.</p>
+    <div class="price-row">
+      <span class="amount" id="modalAmount">2,40 €</span>
+      <span class="desc" id="modalDesc">TTC · paiement unique</span>
+    </div>
+    <div class="terms-box" id="modalTermsBox">
+      Vous payez <strong>2,40 €, une seule fois</strong>. Aucun abonnement n'est associé à cet achat. Aucun prélèvement ne sera effectué à l'avenir sans votre consentement explicite et préalable.
+      Voir les <a href="#" onclick="closeModal('paymentModal'); openTerms(); return false;">CGV complètes</a>.
+    </div>
+    <label class="checkbox-row">
+      <input type="checkbox" id="cgvCheck">
+      <span>Je confirme avoir 16 ans ou plus et j'accepte les <a href="#" onclick="closeModal('paymentModal'); openTerms(); return false;">CGV</a>.</span>
+    </label>
+    <button class="btn btn-dark" onclick="confirmPayment()" id="modalPayBtn">Payer 2,40 € et voir mes résultats</button>
+    <p class="price-note">Ceci est une démonstration — aucun paiement réel n'est prélevé ici.</p>
+  </div>
+</div>
+
+<!-- TERMS MODAL -->
+<div class="modal-backdrop" id="termsModal">
+  <div class="modal" style="max-height:80vh; overflow-y:auto;">
+    <button class="modal-close" onclick="closeModal('termsModal')" aria-label="Fermer">×</button>
+    <h2 style="margin-bottom:14px;">Conditions générales de vente</h2>
+    <div style="font-size:13px; color:rgba(243,233,216,0.75); line-height:1.7;">
+      <p><strong>1. Objet.</strong> Les présentes CGV régissent l'utilisation du service GlowScope, service d'analyse beauté personnalisée assistée par intelligence artificielle.</p><br>
+      <p><strong>2. Service.</strong> L'analyse sommaire (peau, yeux, cheveux) est gratuite. L'accès complet (routine, suivi, produits) est proposé pour un paiement unique de 2,40 € TTC.</p><br>
+      <p><strong>2bis. Produits recommandés.</strong> Les suggestions de produits (offre Premium) constituent une sélection généraliste, non exhaustive et non personnalisée à votre situation médicale. Les liens associés mènent vers des résultats de recherche sur des sites marchands tiers, et non vers des produits imposés. Il est recommandé de demander conseil à un dermatologue en cas de doute.</p><br>
+      <p><strong>3. Prix et formules.</strong> Deux formules sont proposées : (a) l'<strong>analyse unique</strong> à 2,40 €, débitée une seule fois, sans abonnement ni reconduction ; (b) l'<strong>abonnement hebdomadaire</strong> à 4,80 €/semaine (soit environ 250 € sur une année pleine), prélevé automatiquement chaque semaine à la même date jusqu'à résiliation par l'utilisateur. L'abonnement est <strong>sans engagement de durée</strong> et peut être résilié à tout moment avant la prochaine échéance, sans frais, depuis l'espace de gestion du paiement ou en écrivant à l'adresse de contact ci-dessous. Aucun prélèvement n'a lieu après résiliation.</p><br>
+      <p><strong>4. Droit de rétractation.</strong> Conformément à l'article L221-18 du Code de la consommation, vous disposez de 14 jours pour exercer votre droit de rétractation à compter de l'achat ou de la souscription, en écrivant à l'adresse de contact ci-dessous.</p><br>
+      <p><strong>5. Données personnelles.</strong> La photo transmise est utilisée uniquement pour générer votre analyse et n'est pas conservée sur nos serveurs au-delà du traitement, ni revendue à des tiers, conformément au RGPD. Vous pouvez demander la suppression de vos données à tout moment.</p><br>
+      <p><strong>6. Limitation de responsabilité.</strong> Les analyses sont générées par IA à titre indicatif et ne constituent pas un avis médical ou dermatologique. Consultez un professionnel de santé en cas de doute.</p><br>
+      <p><strong>7. Contact.</strong> contact@glowscope-app.example</p>
+    </div>
+  </div>
+</div>
+
+<script>
+let uploadedImageBase64 = null;
+let uploadedMediaType = null;
+let analysisData = null;
+let declaredSkinType = "Mixte";
+
+function goTo(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+  requestAnimationFrame(() => window.scrollTo(0, 0));
+  setTimeout(() => window.scrollTo(0, 0), 50);
+  setTimeout(() => window.scrollTo(0, 0), 300);
+}
+
+function openModal(id){ document.getElementById(id).classList.add('active'); }
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+
+function getSelectedPlan(){
+  const checked = document.querySelector('input[name="plan"]:checked');
+  return checked ? checked.value : 'once';
+}
+
+function openPaywall(forcePlan){
+  if(forcePlan){
+    const target = document.querySelector('input[name="plan"][value="' + forcePlan + '"]');
+    if(target) target.checked = true;
+  }
+  const plan = getSelectedPlan();
+  if(plan === 'weekly'){
+    document.getElementById('modalPlanSubtitle').textContent = "Accès immédiat, renouvelé chaque semaine.";
+    document.getElementById('modalAmount').textContent = "4,80 €";
+    document.getElementById('modalDesc').textContent = "TTC · par semaine (≈250 €/an)";
+    document.getElementById('modalTermsBox').innerHTML = 'Vous souscrivez un <strong>abonnement de 4,80 €/semaine</strong> (soit environ 250 €/an), prélevé automatiquement chaque semaine jusqu\'à résiliation. Vous pouvez résilier à tout moment, sans frais ni préavis, depuis votre espace de paiement. Voir les <a href="#" onclick="closeModal(\'paymentModal\'); openTerms(); return false;">CGV complètes</a>.';
+    document.getElementById('modalPayBtn').textContent = "S'abonner à 4,80 €/semaine";
+  } else if(plan === 'premium'){
+    document.getElementById('modalPlanSubtitle').textContent = "Accès immédiat, renouvelé chaque semaine, avec recommandations produits.";
+    document.getElementById('modalAmount').textContent = "9,60 €";
+    document.getElementById('modalDesc').textContent = "TTC · par semaine (≈500 €/an)";
+    document.getElementById('modalTermsBox').innerHTML = 'Vous souscrivez un <strong>abonnement Premium de 9,60 €/semaine</strong> (soit environ 500 €/an), incluant les recommandations produits, prélevé automatiquement chaque semaine jusqu\'à résiliation. Vous pouvez résilier à tout moment, sans frais ni préavis, depuis votre espace de paiement. Voir les <a href="#" onclick="closeModal(\'paymentModal\'); openTerms(); return false;">CGV complètes</a>.';
+    document.getElementById('modalPayBtn').textContent = "S'abonner à 9,60 €/semaine";
+  } else {
+    document.getElementById('modalPlanSubtitle').textContent = "Accès immédiat, une seule fois.";
+    document.getElementById('modalAmount').textContent = "2,40 €";
+    document.getElementById('modalDesc').textContent = "TTC · paiement unique";
+    document.getElementById('modalTermsBox').innerHTML = 'Vous payez <strong>2,40 €, une seule fois</strong>. Aucun abonnement n\'est associé à cet achat. Aucun prélèvement ne sera effectué à l\'avenir sans votre consentement explicite et préalable. Voir les <a href="#" onclick="closeModal(\'paymentModal\'); openTerms(); return false;">CGV complètes</a>.';
+    document.getElementById('modalPayBtn').textContent = "Payer 2,40 € et voir mes résultats";
+  }
+  openModal('paymentModal');
+}
+
+function openTerms(){ openModal('termsModal'); }
+
+function handleFile(event){
+  const file = event.target.files[0];
+  const errBox = document.getElementById('uploadError');
+  errBox.style.display = 'none';
+  if(!file) return;
+  if(file.size > 8 * 1024 * 1024){
+    errBox.textContent = "L'image est trop volumineuse (8 Mo maximum).";
+    errBox.style.display = 'block';
+    return;
+  }
+  uploadedMediaType = file.type;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    uploadedImageBase64 = e.target.result.split(',')[1];
+    const img = document.getElementById('previewImg');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    document.getElementById('uploadPlaceholder').style.display = 'none';
+    document.getElementById('uploadZone').classList.add('has-image');
+    document.getElementById('startAnalysisBtn').disabled = false;
+  };
+  reader.onerror = function(){
+    errBox.textContent = "Impossible de lire cette image. Essayez un autre fichier.";
+    errBox.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function goToQuiz(){
+  if(!uploadedImageBase64) return;
+  goTo('screen-quiz');
+}
+
+function getQuizAnswers(){
+  const form = document.getElementById('quizForm');
+  const data = new FormData(form);
+  const answers = {};
+  for(const [key, value] of data.entries()){ answers[key] = value; }
+  return answers;
+}
+
+const scanMessages = [
+  "Lecture de la photo…",
+  "Détection du grain de peau…",
+  "Analyse de la teinte des yeux…",
+  "Analyse de la texture des cheveux…",
+  "Rédaction de vos résultats…"
+];
+
+async function startAnalysis(){
+  if(!uploadedImageBase64) return;
+  const quiz = getQuizAnswers();
+  declaredSkinType = quiz.skinType || "Mixte";
+  goTo('screen-scan');
+  let i = 0;
+  const statusEl = document.getElementById('scanStatus');
+  statusEl.textContent = scanMessages[0];
+  const interval = setInterval(() => {
+    i = (i + 1) % scanMessages.length;
+    statusEl.textContent = scanMessages[i];
+  }, 900);
+
+  const lifestyleSummary = `Type de peau déclaré : ${quiz.skinType || "non précisé"}. Eau bue par jour : ${quiz.water || "non précisé"}. Alimentation : ${quiz.diet || "non précisé"}. Sommeil : ${quiz.sleep || "non précisé"}. Nettoyage du visage : ${quiz.cleansing || "non précisé"}. Protection solaire : ${quiz.sun || "non précisé"}. Tabac/alcool : ${quiz.habits || "non précisé"}.`;
+
+  try{
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 2000,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: uploadedMediaType, data: uploadedImageBase64 } },
+            { type: "text", text: "Tu es un outil de style et de beauté, PAS un professionnel de santé. Observe cette photo de visage ET les habitudes de vie suivantes déclarées par la personne : " + lifestyleSummary + " Rédige, en français, une analyse beauté bienveillante et non médicale qui tient compte à la fois de la photo et de ces habitudes, en étant le plus précis et personnalisé possible — évite les formulations génériques qui pourraient s'appliquer à n'importe qui. Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant ni après, sans balises markdown, au format exact suivant : {\"skin\": \"2-3 phrases précises et personnalisées sur le teint et le grain de peau visible, en lien si pertinent avec l'hydratation/l'alimentation déclarées, ton bienveillant, jamais alarmiste\", \"eyes\": \"2 phrases précises sur la couleur et la forme des yeux observées sur CETTE photo\", \"hair\": \"2 phrases précises sur la texture et la couleur des cheveux visibles sur CETTE photo\", \"routine\": \"une routine matin ET soir très détaillée et poussée, 8 à 10 étapes au total (nettoyant adapté au type de peau, tonique/essence, sérum ciblé selon la problématique identifiée, contour des yeux, crème hydratante, SPF le matin, exfoliant avec fréquence précise, masque avec fréquence précise, éventuel booster ou huile le soir), séparées par des points-virgules, SANS numéroter toi-même les étapes (ni chiffres, ni '1.', ni tirets en début d'étape — juste le texte brut de chaque étape) — pour chaque étape précise le TYPE de produit, quand l'appliquer, et pourquoi cette étape est utile pour cette personne en particulier, pour que le résultat soit concrètement visible en la suivant\", \"suivi\": \"un suivi d'évolution détaillé et structuré en 6 à 8 phrases : décris précisément ce à quoi s'attendre semaine par semaine (semaine 1-2, semaine 3-4, au-delà d'1 mois), avec les signes concrets à observer à chaque étape (confort de peau, texture, éclat, etc. selon le profil) ; donne une méthode précise et actionnable pour suivre objectivement ses progrès (ex : photo hebdomadaire dans les mêmes conditions de lumière, à la même heure, sans maquillage, en notant aussi comment la peau se sent) ; explique un ou deux signes clairs qui indiqueraient que la routine fonctionne bien pour cette personne en particulier ; et ajoute un conseil sur quoi ajuster si aucun changement n'est perceptible après plusieurs semaines\"}. Reste toujours positif, jamais de diagnostic médical, jamais de commentaire sur l'âge, le poids ou l'origine ethnique, et ne fais aucun commentaire culpabilisant sur les habitudes déclarées." }
+          ]
+        }]
+      })
+
+    });
+    const data = await response.json();
+    const rawText = data.content.map(b => b.text || "").join("");
+    const cleaned = rawText.replace(/```json|```/g, "").trim();
+    analysisData = JSON.parse(cleaned);
+  }catch(err){
+    console.error("Analysis error:", err);
+    const fallbacks = [
+      {
+        skin: "Votre peau présente un teint homogène avec un bel éclat naturel. Une hydratation ciblée pourrait sublimer davantage votre grain de peau.",
+        eyes: "Vos yeux ont une couleur expressive qui gagnerait à être mise en valeur par des teintes chaudes.",
+        hair: "Vos cheveux affichent une belle texture. Un soin nourrissant régulier aiderait à préserver leur brillance.",
+        routine: "Nettoyant doux au gel le matin, pour ne pas décaper la peau; Tonique sans alcool le matin, pour rééquilibrer le pH; Sérum à la vitamine C le matin, pour l'éclat; Crème hydratante légère le matin; SPF 30 minimum le matin, en dernière étape; Nettoyant doux le soir pour retirer les impuretés de la journée; Sérum ciblé le soir selon vos besoins du moment; Soin contour des yeux le soir, en tapotant sans frotter; Crème de nuit plus riche le soir; Exfoliant doux 2x/semaine en soin du soir; Masque hydratant 1x/semaine",
+        suivi: "Semaines 1-2 : votre peau s'habitue aux nouveaux produits, un léger regain d'éclat et de confort est souvent le premier signe positif. Semaines 3-4 : le grain de peau commence généralement à paraître plus lisse et homogène, surtout si la routine est suivie matin et soir sans interruption. Au-delà d'un mois : c'est à ce stade que les effets sur l'hydratation en profondeur et l'uniformité du teint deviennent les plus visibles. Pour objectiver vos progrès, prenez une photo chaque dimanche, dans les mêmes conditions de lumière naturelle, sans maquillage, et notez en une phrase comment votre peau se sent ce jour-là. Un bon signe que la routine fonctionne : une sensation de confort cutané qui dure toute la journée, sans tiraillement ni sensation de peau qui tire. Si vous ne constatez aucun changement après 4 à 6 semaines, essayez d'espacer l'exfoliant et de vérifier que la crème hydratante est bien adaptée à votre type de peau."
+      },
+      {
+        skin: "Votre peau a un aspect globalement équilibré, avec quelques zones qui pourraient bénéficier d'un soin plus ciblé selon vos habitudes déclarées.",
+        eyes: "Le regard est l'un des traits les plus marquants de votre visage — une mise en valeur subtile suffirait à le sublimer davantage.",
+        hair: "Vos cheveux ont du caractère. Un rituel de soins réguliers aiderait à renforcer leur éclat sur la durée.",
+        routine: "Gel nettoyant le matin, adapté aux peaux mixtes; Essence hydratante le matin, en fine couche; Sérum antioxydant le matin, pour protéger des agressions extérieures; Crème légère le matin, non comédogène; SPF le matin en dernière étape; Démaquillant doux le soir, en premier geste; Sérum réparateur le soir; Contour des yeux le soir; Crème nourrissante le soir, un peu plus riche que celle du matin; Masque apaisant 1x/semaine; Exfoliant enzymatique doux 1x/semaine",
+        suivi: "Semaines 1-2 : la peau s'adapte, on observe souvent une réduction des petits inconforts (tiraillements, sensation de peau terne) avant même un changement visible. Semaines 3-4 : c'est généralement là que l'homogénéité du teint commence à s'améliorer de façon perceptible. Au-delà d'un mois : les zones plus sensibles identifiées dans votre profil devraient montrer le plus d'amélioration si la routine est suivie sans interruption. Pour suivre votre évolution de façon fiable, prenez une photo chaque semaine au même moment de la journée et dans la même lumière, et notez chaque soir en une ligne comment votre peau s'est sentie. Un signe que ça fonctionne : de moins en moins de sensations d'inconfort en fin de journée, et un maquillage qui tient mieux si vous en portez. Si rien ne change après un mois, réduisez la fréquence de l'exfoliant et privilégiez une crème plus riche le soir."
+      },
+      {
+        skin: "On distingue un grain de peau plutôt fin, avec un potentiel d'éclat qui ne demande qu'à être révélé par une routine adaptée.",
+        eyes: "La forme et la couleur de vos yeux offrent de belles possibilités de mise en valeur avec les bonnes teintes.",
+        hair: "La texture de vos cheveux se prête bien à des soins ciblés pour renforcer souplesse et brillance.",
+        routine: "Nettoyant doux le matin, en eau tiède; Tonique apaisant le matin; Sérum hydratant le matin; Crème adaptée à votre peau le matin; SPF le matin, à réappliquer si exposition prolongée; Huile démaquillante le soir, pour bien dissoudre les impuretés; Sérum réparateur le soir; Soin contour des yeux le soir; Crème riche le soir; Exfoliant enzymatique doux 1 à 2x/semaine; Masque hebdomadaire adapté à vos besoins du moment",
+        suivi: "Semaines 1-2 : les premiers effets sur l'éclat sont souvent perceptibles dès une dizaine de jours si la routine est suivie assidûment matin et soir. Semaines 3-4 : c'est le moment où la texture de la peau commence à se transformer le plus visiblement, avec un grain plus affiné. Au-delà d'un mois : le potentiel d'éclat naturel de votre peau devrait être pleinement révélé, à condition de maintenir la routine sans l'interrompre. Prenez une photo de référence aujourd'hui, dans une lumière naturelle et sans maquillage, puis renouvelez-la chaque semaine au même endroit pour comparer objectivement les progrès. Un bon indicateur : une peau qui paraît de plus en plus souple et lumineuse au fil des semaines, avec moins de zones ternes. Si vous ne voyez pas de différence après 4 semaines, vérifiez que le démaquillage du soir est bien complet avant d'appliquer les autres soins."
+      }
+    ];
+    analysisData = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+  }
+
+  clearInterval(interval);
+  renderResults();
+  goTo('screen-results');
+}
+
+function shopLinks(query){
+  const q = encodeURIComponent(query);
+  return `<div class="p-links">
+    <a href="https://www.amazon.fr/s?k=${q}" target="_blank" rel="noopener">Voir sur Amazon</a>
+    <a href="https://www.sephora.fr/recherche?q=${q}" target="_blank" rel="noopener">Voir sur Sephora</a>
+  </div>`;
+}
+
+function renderProducts(){
+  const skinProductsByType = {
+    "Sèche": [
+      { name: "Sérum riche à l'acide hyaluronique", desc: "Formule concentrée pour repulper et nourrir en profondeur les peaux sèches.", q: "sérum acide hyaluronique peau sèche" },
+      { name: "Huile visage nourrissante", desc: "Renforce la barrière cutanée et limite les sensations de tiraillement.", q: "huile visage nourrissante peau sèche" }
+    ],
+    "Grasse": [
+      { name: "Gel-crème matifiant sans huile", desc: "Hydrate sans alourdir ni accentuer les brillances.", q: "gel crème matifiant sans huile visage" },
+      { name: "Crème SPF matifiante", desc: "Protection solaire avec fini mat, pensée pour les peaux à tendance grasse.", q: "crème solaire matifiante visage" }
+    ],
+    "Sensible": [
+      { name: "Crème apaisante sans parfum", desc: "Formule minimaliste pensée pour limiter les risques d'irritation.", q: "crème apaisante sans parfum peau sensible" },
+      { name: "SPF minéral pour peau sensible", desc: "Filtres minéraux, généralement mieux tolérés par les peaux réactives.", q: "SPF minéral peau sensible" }
+    ],
+    "Mixte": [
+      { name: "Sérum hydratant à l'acide hyaluronique", desc: "Aide à repulper et hydrater en profondeur, adapté à la plupart des types de peau.", q: "sérum acide hyaluronique visage" },
+      { name: "Crème avec SPF 30 ou plus", desc: "Protection solaire quotidienne, essentielle pour prévenir le vieillissement cutané.", q: "crème hydratante SPF 30 visage" }
+    ]
+  };
+  const advancedProductsByType = {
+    "Sèche": [
+      { name: "Baume réparateur de nuit", desc: "Soin riche pour restaurer le film hydrolipidique pendant la nuit.", q: "baume réparateur nuit peau sèche" },
+      { name: "Masque hydratant intense", desc: "Recharge la peau en eau en profondeur, en cure ponctuelle.", q: "masque hydratant intense visage" }
+    ],
+    "Grasse": [
+      { name: "Masque à l'argile purifiant", desc: "Aide à resserrer les pores et à matifier les zones sujettes aux brillances.", q: "masque argile purifiant visage" },
+      { name: "Lotion resserrant les pores", desc: "Complète le nettoyage pour affiner visuellement le grain de peau.", q: "lotion resserrant pores visage" }
+    ],
+    "Sensible": [
+      { name: "Masque apaisant à l'avoine", desc: "Formule douce pensée pour calmer les rougeurs et l'inconfort.", q: "masque apaisant avoine peau sensible" },
+      { name: "Exfoliant très doux sans grains", desc: "Exfolie en douceur sans agresser une peau réactive.", q: "exfoliant doux sans grains peau sensible" }
+    ],
+    "Mixte": [
+      { name: "Exfoliant doux enzymatique", desc: "Élimine les cellules mortes en douceur pour un teint plus lisse et plus lumineux.", q: "exfoliant enzymatique doux visage" },
+      { name: "Masque à l'argile purifiant", desc: "Aide à resserrer les pores et à matifier les zones sujettes aux brillances.", q: "masque argile purifiant visage" }
+    ]
+  };
+  const skinType = skinProductsByType[declaredSkinType] ? declaredSkinType : "Mixte";
+  const groups = [
+    { title: "Pour la peau", items: skinProductsByType[skinType] },
+    { title: "Pour les cheveux", items: [
+      { name: "Masque nourrissant sans rinçage", desc: "Renforce la fibre capillaire et apporte de la brillance aux longueurs.", q: "masque cheveux nourrissant sans rinçage" },
+      { name: "Sérum anti-frisottis", desc: "Discipline les cheveux et protège des agressions extérieures (chaleur, humidité).", q: "sérum anti frisottis cheveux" }
+    ]},
+    { title: "Soins ciblés avancés", items: advancedProductsByType[skinType] }
+  ];
+  let html = '';
+  groups.forEach(g => {
+    html += `<div class="product-group"><h4>${g.title}</h4>`;
+    g.items.forEach(it => {
+      html += `<div class="product-item"><div class="p-name">${it.name}</div><div class="p-desc">${it.desc}</div>${shopLinks(it.q)}</div>`;
+    });
+    html += `</div>`;
+  });
+  document.getElementById('res-products').innerHTML = html;
+}
+
+function saveHistoryEntry(){
+  try{
+    const history = JSON.parse(localStorage.getItem('glowscope_history') || '[]');
+    history.unshift({
+      date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }),
+      skin: analysisData.skin,
+      hair: analysisData.hair
+    });
+    localStorage.setItem('glowscope_history', JSON.stringify(history.slice(0, 8)));
+  }catch(e){ console.error("Historique non sauvegardé :", e); }
+}
+
+function renderHistory(){
+  const history = JSON.parse(localStorage.getItem('glowscope_history') || '[]');
+  const box = document.getElementById('res-history');
+  if(history.length === 0){
+    box.innerHTML = `<p style="font-size:13px; opacity:0.7;">Votre historique se remplira au fil de vos prochaines analyses, pour suivre votre évolution dans le temps.</p>`;
+    return;
+  }
+  box.innerHTML = history.map(h => `
+    <div class="product-item">
+      <div class="p-name">${h.date}</div>
+      <div class="p-desc">${h.skin}</div>
+    </div>
+  `).join('');
+}
+
+function renderAvoidList(){
+  const avoidByType = {
+    "Sèche": ["Nettoyants moussants agressifs qui décapent le film hydrolipidique", "Exfoliation trop fréquente (pas plus d'1x/semaine)", "Eau très chaude sur le visage"],
+    "Grasse": ["Produits comédogènes ou trop riches en huile", "Sur-nettoyage qui peut stimuler encore plus la production de sébum", "Alcool à forte concentration qui assèche puis fait sur-réagir la peau"],
+    "Sensible": ["Parfum et huiles essentielles dans les soins visage", "Exfoliants à grains agressifs", "Cumul de plusieurs actifs forts (rétinol + acides) en même temps"],
+    "Mixte": ["Cibler tout le visage avec un soin unique sans adapter zone T et joues", "Sauter le SPF les jours nuageux", "Changer de routine trop souvent, avant de laisser le temps aux produits d'agir"]
+  };
+  const list = avoidByType[declaredSkinType] || avoidByType["Mixte"];
+  const html = `<h4 style="font-size:13px; color:#E8D5A8; margin-bottom:6px;">⚠️ À éviter avec votre type de peau</h4><ul style="font-size:13px; opacity:0.85; padding-left:18px; line-height:1.6;">${list.map(i => `<li>${i}</li>`).join('')}</ul>`;
+  document.getElementById('res-avoid').innerHTML = html;
+}
+
+/* ---- Assistant (réponses pré-écrites, sans backend) ---- */
+const chatTopics = [
+  { keywords: ['prix', 'coût', 'cout', 'combien', 'tarif', 'cher'],
+    reply: "Trois formules : 2,40 € en paiement unique, 4,80 €/semaine en abonnement (analyses illimitées), ou 9,60 €/semaine en Premium avec en plus des recommandations produits personnalisées." },
+  { keywords: ['annul', 'résili', 'resili', 'stopper', 'arrêter', 'arreter'],
+    reply: "Les abonnements (4,80 €/semaine et Premium) sont résiliables en un clic, à tout moment, depuis votre espace de paiement. Aucun frais ni préavis." },
+  { keywords: ['donnée', 'donnee', 'photo', 'confidential', 'stock', 'rgpd', 'vie privée', 'vie privee'],
+    reply: "Votre photo est utilisée uniquement pour générer votre analyse et n'est pas conservée sur nos serveurs. Le détail est dans la politique de confidentialité, accessible en bas de l'app." },
+  { keywords: ['médic', 'medic', 'dermato', 'diagnostic', 'santé', 'sante', 'maladie'],
+    reply: "GlowScope propose une analyse générée par IA à titre indicatif, sans valeur médicale. Ça ne remplace pas l'avis d'un dermatologue." },
+  { keywords: ['fonctionne', 'marche', 'comment ça marche', 'comment ca marche', 'utiliser'],
+    reply: "Vous uploadez une photo, répondez à quelques questions sur vos habitudes, et recevez une analyse de votre peau, vos yeux et vos cheveux. La routine détaillée, le suivi et les produits recommandés sont débloqués avec une des formules payantes." },
+  { keywords: ['rembours', 'rétract', 'retract', 'droit'],
+    reply: "Un droit de rétractation de 14 jours s'applique conformément à la réglementation en vigueur — voir les CGV complètes pour les modalités exactes." },
+  { keywords: ['premium', 'produit'],
+    reply: "L'offre Premium (9,60 €/semaine) inclut tout l'abonnement hebdomadaire, plus une sélection de produits conseillés pour votre peau et vos cheveux, avec des liens vers des sites marchands." },
+  { keywords: ['contact', 'aide', 'support', 'question', 'humain'],
+    reply: "Pour toute question qui ne trouve pas de réponse ici, consultez les Conditions générales de vente en bas de l'app, qui détaillent l'ensemble du service." }
+];
+const chatFallback = "Je n'ai pas de réponse toute prête pour cette question. Vous trouverez plus de détails dans les Conditions générales de vente, accessibles en bas de l'app.";
+
+function toggleChat(){
+  document.getElementById('chatPanel').classList.toggle('active');
+}
+
+function appendChatMessage(text, sender){
+  const box = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + sender;
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function matchChatReply(question){
+  const q = question.toLowerCase();
+  for(const topic of chatTopics){
+    if(topic.keywords.some(k => q.includes(k))) return topic.reply;
+  }
+  return chatFallback;
+}
+
+function askChat(question){
+  appendChatMessage(question, 'user');
+  const reply = matchChatReply(question);
+  setTimeout(() => appendChatMessage(reply, 'bot'), 300);
+}
+
+function sendChat(){
+  const input = document.getElementById('chatInput');
+  const question = input.value.trim();
+  if(!question) return;
+  input.value = '';
+  askChat(question);
+}
+
+let toastTimer = null;
+function showToast(message){
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.classList.remove('show'); }, 2200);
+}
+
+function copyRoutine(){
+  const steps = analysisData.routine.split(';').map(s => s.trim().replace(/^\d+[\.\)]\s*/, '')).filter(Boolean);
+  const text = "Ma routine GlowScope :\n\n" + steps.map((s,idx) => `${idx+1}. ${s}`).join('\n');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(() => {
+      showToast("✓ Routine copiée !");
+    }).catch(() => {
+      alert("Impossible de copier automatiquement. Voici votre routine :\n\n" + text);
+    });
+  } else {
+    alert("Impossible de copier automatiquement. Voici votre routine :\n\n" + text);
+  }
+}
+
+function randomScore(){
+  // Note sur 10, jamais supérieure à 8.
+  return (Math.floor(Math.random() * 5) + 4); // entier entre 4 et 8
+}
+
+let globalScoreValue = null;
+
+function revealGlobalScore(){
+  globalScoreValue = randomScore();
+  document.getElementById('globalscore-reveal').style.display = 'none';
+  const numEl = document.getElementById('globalscore-number');
+  numEl.style.display = 'block';
+  // Petit effet "tac" : défilement rapide de chiffres aléatoires avant de se figer sur la vraie note
+  let ticks = 0;
+  const maxTicks = 12;
+  const interval = setInterval(() => {
+    ticks++;
+    if(ticks < maxTicks){
+      numEl.textContent = (Math.floor(Math.random() * 9) + 1) + '/10';
+    } else {
+      clearInterval(interval);
+      numEl.textContent = globalScoreValue + '/10';
+      numEl.style.transform = 'scale(1.15)';
+      setTimeout(() => { numEl.style.transition = 'transform 0.25s ease'; numEl.style.transform = 'scale(1)'; }, 30);
+      document.getElementById('globalscore-ctaval').textContent = globalScoreValue + '/10';
+      const ctaEl = document.getElementById('globalscore-cta');
+      ctaEl.style.display = 'block';
+      ctaEl.style.opacity = '0';
+      setTimeout(() => { ctaEl.style.transition = 'opacity 0.5s ease'; ctaEl.style.opacity = '1'; }, 50);
+    }
+  }, 60);
+}
+
+function renderResults(){
+  document.getElementById('res-skin').textContent = analysisData.skin;
+  document.getElementById('res-eyes').textContent = analysisData.eyes;
+  document.getElementById('res-hair').textContent = analysisData.hair;
+  document.getElementById('globalscore-reveal').style.display = 'block';
+  document.getElementById('globalscore-number').style.display = 'none';
+  document.getElementById('globalscore-cta').style.display = 'none';
+  globalScoreValue = null;
+  const steps = analysisData.routine.split(';').map(s => s.trim().replace(/^\d+[\.\)]\s*/, '')).filter(Boolean);
+  document.getElementById('res-routine').innerHTML = steps.map((s,idx) => `<div class="routine-step"><span class="step-num">${idx+1}</span><span class="step-text">${s}</span></div>`).join('');
+  document.getElementById('res-suivi').textContent = analysisData.suivi;
+  renderAvoidList();
+  renderProducts();
+
+  const tier = localStorage.getItem('glowscope_tier');
+  if(tier === 'once' || tier === 'weekly' || tier === 'premium'){
+    saveHistoryEntry();
+    renderHistory();
+    unlockResults(tier);
+  }
+}
+
+const WHOP_LINKS = {
+  once: "https://whop.com/glowscope-b6ef/analyse-glowscope-5/",
+  weekly: "https://whop.com/glowscope-b6ef/abonnement-glowscope-a8/",
+  premium: "https://whop.com/glowscope-b6ef/premium-glowscope/"
+};
+
+function confirmPayment(){
+  if(!document.getElementById('cgvCheck').checked){
+    alert("Merci de confirmer votre âge et l'acceptation des CGV pour continuer.");
+    return;
+  }
+  const plan = getSelectedPlan();
+  const link = WHOP_LINKS[plan];
+  if(!link){
+    alert("Cette formule n'est pas encore disponible à l'achat, revenez bientôt !");
+    return;
+  }
+  // On sauvegarde l'analyse en cours pour pouvoir la restaurer directement,
+  // déverrouillée, dès que la personne revient du paiement Whop.
+  if(analysisData){
+    localStorage.setItem('glowscope_pending_analysis', JSON.stringify(analysisData));
+  }
+  window.location.href = link;
+}
+
+function unlockResults(tier){
+  document.getElementById('card-routine').classList.remove('locked');
+  document.getElementById('card-suivi').classList.remove('locked');
+  document.getElementById('card-history').classList.remove('locked');
+  if(tier === 'premium'){
+    document.getElementById('card-products').classList.remove('locked');
+  }
+  document.querySelector('.unlock-panel').style.display = 'none';
+}
+
+// Après un paiement Whop réussi, l'utilisateur revient sur le site (page rechargée).
+// On mémorise l'achat sur cet appareil, et si on a sauvegardé l'analyse juste avant
+// le paiement, on la restaure directement et on va droit sur les résultats déverrouillés.
+(function checkUnlockOnLoad(){
+  const params = new URLSearchParams(window.location.search);
+  const unlocked = params.get('unlocked');
+  if(unlocked === 'once' || unlocked === 'weekly' || unlocked === 'premium'){
+    localStorage.setItem('glowscope_tier', unlocked);
+    const pending = localStorage.getItem('glowscope_pending_analysis');
+    if(pending){
+      try{
+        analysisData = JSON.parse(pending);
+        renderResults();
+        goTo('screen-results');
+      }catch(e){
+        // Si la restauration échoue, on ne bloque pas — l'achat reste mémorisé
+        // et débloquera automatiquement la prochaine analyse lancée.
+      }
+      localStorage.removeItem('glowscope_pending_analysis');
+    }
+  }
+})();
+
+
+function resetApp(){
+  uploadedImageBase64 = null;
+  analysisData = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('previewImg').style.display = 'none';
+  document.getElementById('uploadPlaceholder').style.display = 'block';
+  document.getElementById('uploadZone').classList.remove('has-image');
+  document.getElementById('startAnalysisBtn').disabled = true;
+  document.getElementById('card-routine').classList.add('locked');
+  document.getElementById('card-suivi').classList.add('locked');
+  document.getElementById('card-history').classList.add('locked');
+  document.getElementById('card-products').classList.add('locked');
+  document.querySelector('.unlock-panel').style.display = 'block';
+  goTo('screen-hero');
+}
+</script>
+  <div class="toast" id="toast"></div>
+</body>
+</html>
