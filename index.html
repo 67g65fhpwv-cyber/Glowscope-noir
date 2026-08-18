@@ -806,10 +806,14 @@ const scanMessages = [
 ];
 
 async function startAnalysis(){
-  if(!uploadedImageBase64) return;
+  alert('checkpoint 1 : startAnalysis appelée');
+  if(!uploadedImageBase64) { alert('STOP : pas de photo en mémoire'); return; }
+  alert('checkpoint 2 : photo présente');
   const quiz = getQuizAnswers();
+  alert('checkpoint 3 : quiz lu');
   declaredSkinType = quiz.skinType || "Mixte";
   goTo('screen-scan');
+  alert('checkpoint 4 : goTo scan appelé');
   let i = 0;
   const statusEl = document.getElementById('scanStatus');
   statusEl.textContent = scanMessages[0];
