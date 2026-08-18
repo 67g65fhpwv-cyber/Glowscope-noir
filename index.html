@@ -294,6 +294,19 @@
 </style>
 </head>
 <body>
+<div id="debugErrorBox" style="display:none; position:fixed; top:0; left:0; right:0; z-index:9999; background:#b91c1c; color:#fff; font-family:monospace; font-size:12px; padding:12px; word-break:break-word; max-height:40vh; overflow:auto;"></div>
+<script>
+  window.addEventListener('error', function(e){
+    var box = document.getElementById('debugErrorBox');
+    box.style.display = 'block';
+    box.textContent += 'ERREUR: ' + e.message + ' (ligne ' + e.lineno + ')\n';
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    var box = document.getElementById('debugErrorBox');
+    box.style.display = 'block';
+    box.textContent += 'PROMESSE REJETÉE: ' + (e.reason && e.reason.message ? e.reason.message : e.reason) + '\n';
+  });
+</script>
 <div class="wrap">
 
   <div class="topbar">
@@ -857,8 +870,11 @@ async function startAnalysis(){
   }
 
   clearInterval(interval);
+  alert('checkpoint 5 : sur le point d\'afficher les résultats');
   renderResults();
+  alert('checkpoint 6 : résultats préparés, on y va');
   goTo('screen-results');
+  alert('checkpoint 7 : écran résultats affiché');
 }
 
 function shopLinks(query){
